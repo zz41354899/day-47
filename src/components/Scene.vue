@@ -1618,7 +1618,7 @@ function buildHall() {
   // 結尾：門口多了一雙小妤的鞋
   o.guestShoes = new THREE.Group()
   ;[-0.06, 0.06].forEach((dz) => box(o.guestShoes, 0.22, 0.07, 0.085, '#d98a8a', 0, 0.035, dz))
-  o.guestShoes.position.set(6.62, 0, -1.92)
+  o.guestShoes.position.set(6.72, 0, -1.92)
   o.guestShoes.rotation.y = 0.2
   g.add(o.guestShoes)
 
@@ -1635,6 +1635,85 @@ function buildHall() {
 
   // 門外的藍白拖
   o.hallSlippers = slippers(g, 6.75, -2.15, 1.3)
+
+  // 門邊的鞋櫃：老公寓家家戶戶都把鞋櫃擺在門外，百葉門、木紋貼皮，上面放一雙出門穿的皮鞋
+  const sc = new THREE.Group()
+  sc.position.set(6.2, 0, -1.95)
+  g.add(sc)
+  box(sc, 0.32, 0.06, 0.68, '#4e4034', 0.17, 0.03, 0)
+  box(sc, 0.34, 0.78, 0.72, '#c7b089', 0.17, 0.45, 0, { roughness: 0.7 })
+  box(sc, 0.37, 0.025, 0.76, '#a98b61', 0.185, 0.852, 0, { roughness: 0.55 })
+  ;[-0.175, 0.175].forEach((dz) => {
+    box(sc, 0.012, 0.7, 0.335, '#d6c39d', 0.346, 0.45, dz, { roughness: 0.65 })
+    for (let k = 0; k < 9; k++) box(sc, 0.008, 0.012, 0.27, '#9c8160', 0.354, 0.52 + k * 0.03, dz)
+    box(sc, 0.016, 0.07, 0.016, '#c9c2b0', 0.36, 0.42, dz > 0 ? -0.02 : 0.02, { roughness: 0.35, metalness: 0.6 })
+  })
+  const shoe = mat('#2b2522', { roughness: 0.4 })
+  ;[-0.06, 0.06].forEach((dz, i) => {
+    box(sc, 0.25, 0.06, 0.085, shoe, 0.2 + i * 0.012, 0.895, 0.12 + dz)
+    box(sc, 0.1, 0.04, 0.08, shoe, 0.13 + i * 0.012, 0.94, 0.12 + dz)
+  })
+  // 摺好的雨傘，靠在鞋櫃側邊
+  const umb = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.012, 0.78, 10), mat('#2f4563', { roughness: 0.6 }))
+  umb.position.set(0.3, 0.38, -0.39)
+  umb.rotation.x = -0.12
+  umb.castShadow = true
+  sc.add(umb)
+  box(sc, 0.02, 0.1, 0.02, '#3a2c22', 0.3, 0.8, -0.44)
+
+  // 消防：牆腳一支滅火器，上面貼著紅底白字的牌子
+  const fx = new THREE.Group()
+  fx.position.set(6.31, 0, -4.02)
+  g.add(fx)
+  const red = mat('#c3231c', { roughness: 0.32, metalness: 0.15 })
+  const can = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.075, 0.44, 22), red)
+  can.position.y = 0.22
+  const dome = new THREE.Mesh(new THREE.SphereGeometry(0.075, 22, 10, 0, Math.PI * 2, 0, Math.PI / 2), red)
+  dome.position.y = 0.44
+  can.castShadow = dome.castShadow = true
+  fx.add(can, dome)
+  const steel = mat('#b9bcb8', { roughness: 0.3, metalness: 0.8 })
+  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.026, 0.05, 12), steel)
+  neck.position.y = 0.535
+  fx.add(neck)
+  box(fx, 0.16, 0.018, 0.03, '#1c1c1c', 0.04, 0.575, 0)
+  box(fx, 0.13, 0.016, 0.028, '#1c1c1c', 0.03, 0.548, 0).rotation.z = -0.25
+  const gauge = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.012, 14), mat('#f2efe4'))
+  gauge.rotation.z = Math.PI / 2
+  gauge.position.set(0.035, 0.535, 0.03)
+  fx.add(gauge)
+  const hose = new THREE.Mesh(
+    new THREE.TubeGeometry(new THREE.CatmullRomCurve3([V(-0.01, 0.55, -0.02), V(-0.05, 0.58, -0.07), V(-0.08, 0.45, -0.075), V(-0.08, 0.2, -0.06)]), 16, 0.009, 6),
+    mat('#161616', { roughness: 0.5 }),
+  )
+  hose.castShadow = true
+  fx.add(hose)
+  const fxLabel = canvasTex(128, 192, (c, w, h) => {
+    c.fillStyle = '#f4f1e6'; c.fillRect(0, 0, w, h)
+    c.fillStyle = '#c3231c'; c.fillRect(0, 0, w, 44)
+    c.fillStyle = '#f4f1e6'; c.textAlign = 'center'
+    c.font = `700 30px ${SERIF}`
+    c.fillText('ABC', w / 2, 33)
+    c.fillStyle = '#1d3336'; c.font = `600 28px ${SERIF}`
+    ;['乾粉', '滅火器'].forEach((t, i) => c.fillText(t, w / 2, 90 + i * 40))
+  })
+  fxLabel.redraw()
+  o.redrawLabels.push(fxLabel.redraw)
+  const lab = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.0765, 0.0765, 0.17, 22, 1, true, Math.PI / 2 - 0.55, 1.1),
+    new THREE.MeshStandardMaterial({ map: fxLabel.t, roughness: 0.6 }),
+  )
+  lab.position.y = 0.24
+  fx.add(lab)
+  const sign = canvasTex(256, 96, (c, w, h) => {
+    c.fillStyle = '#c3231c'; c.fillRect(0, 0, w, h)
+    c.fillStyle = '#ffffff'; c.textAlign = 'center'
+    c.font = `700 56px ${SERIF}`
+    c.fillText('滅火器', w / 2, 68)
+  })
+  sign.redraw()
+  o.redrawLabels.push(sign.redraw)
+  plane(g, 0.3, 0.11, new THREE.MeshStandardMaterial({ map: sign.t, roughness: 0.5 }), 6.214, 1.05, -4.02, Math.PI / 2)
 
   // 陳太太門口的盆栽：她每天早上澆水，所以一直都很好
   const garden = new THREE.Group()
@@ -1742,14 +1821,6 @@ function buildHall() {
     f.position.set(0.3 + Math.sin(k * 2.4) * 0.06, 0.2 + rnd() * 0.03, 0.1 + Math.cos(k * 2.4) * 0.06)
     garden.add(f)
   }
-
-  // 往下的樓梯扶手
-  const rail = new THREE.Group()
-  rail.position.set(7.1, 0, -4.15)
-  g.add(rail)
-  const top = box(rail, 0.05, 0.05, 2.9, '#59635f', 0, 0.62, -1.35)
-  top.rotation.x = -0.36
-  for (let i = 0; i < 6; i++) box(rail, 0.025, 1.1 - i * 0.19, 0.025, '#59635f', 0, (1.1 - i * 0.19) / 2, -0.05 - i * 0.5)
 
   // 樓梯間天花板的日光燈：鐵殼、一支燈管
   box(g, 0.16, 0.05, 1.3, '#e6e6de', 8, 2.975, -2.2, { roughness: 0.5 })

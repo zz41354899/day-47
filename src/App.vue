@@ -548,8 +548,14 @@ const kicker = computed(() => {
 const win = reactive({ w: window.innerWidth, h: window.innerHeight })
 const onResize = () => Object.assign(win, { w: window.innerWidth, h: window.innerHeight })
 window.addEventListener('resize', onResize)
+// 按 Esc 也能把手機、單據收起來
+const onEsc = (e) => { if (e.key === 'Escape' && note.value && phase.value === 'play') note.value = null }
+window.addEventListener('keydown', onEsc)
+// 直拿手機（上下分）和橫拿手機（左右分）時，文字不會蓋在場景上，不用讓
+const SPLIT = '(max-width: 760px) and (orientation: portrait), (orientation: landscape) and (max-height: 560px)'
+const split = () => window.matchMedia(SPLIT).matches
 const safeBottom = computed(() =>
-  win.w > 760 && phase.value !== 'intro' ? Math.round(Math.min(250, win.h * (phase.value === 'epilogue' ? 0.2 : 0.27))) : 0,
+  win.w && !split() && phase.value !== 'intro' ? Math.round(Math.min(250, win.h * (phase.value === 'epilogue' ? 0.2 : 0.27))) : 0,
 )
 
 // 時間軸：一條按實際天數比例畫的線，分成三段。左邊是退休那天，右邊是遊戲開場。
@@ -593,6 +599,7 @@ if (fin) {
 }
 
 onBeforeUnmount(() => {
+  window.removeEventListener('keydown', onEsc)
   cancelAnimationFrame(raf)
   cancelAnimationFrame(animRaf)
   clearInterval(clock)
@@ -650,6 +657,7 @@ onBeforeUnmount(() => {
     <aside v-if="phase === 'play' && note && (note.phone || note.cards) && !ringing" class="prop" :class="note.side">
       <PhoneScreen v-if="note.phone" :data="note.phone" />
       <CardDeck v-else :cards="note.cards" />
+      <button class="prop-close" aria-label="收起來，回到屋子裡" @click="note = null">×</button>
     </aside>
     <!-- 結局：這一通由玩家親手撥出去 -->
     <aside v-if="aliveCall" class="prop center">
