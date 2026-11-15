@@ -1192,8 +1192,9 @@ const qa = new THREE.Quaternion()
 // 回傳的 torso／head／sh／el 是「控制桿」：照舊設 rotation（繞 z 是前後擺），每格由 syncFigure 轉成骨頭的旋轉；
 // 對它們 add() 的東西（澆水壺、帽子、袋子）會掛在對應的骨頭上，座標軸和以前一樣。
 function makeFigure(standing, look = {}) {
-  if (!PEOPLE) return makeFigureProc(standing, look)
   const own = !look.shirt
+  // 阿誠用程式做的模型（白頭髮、頭形比較好認）；其他人用 Blender 的
+  if (!PEOPLE || own) return makeFigureProc(standing, look)
   const model = cloneSkinned(PEOPLE[own ? 'acheng' : look.female ? 'woman' : 'man'])
   const root = new THREE.Group()
   const turn = new THREE.Group()
@@ -1291,33 +1292,42 @@ function makeFigureProc(standing, look = {}) {
   const root = new THREE.Group()
 
   // 腳：藍白拖，或是鞋子。y0 是地面
-  const foot = (x, y0, z) => {
+  const foot = (x, y0, z, at = root) => {
     if (look.shoe) {
-      ball(root, 0.125, 0.046, 0.05, mat(look.shoe, { roughness: 0.55, ...P }), x - 0.045, y0 + 0.046, z)
-      box(root, 0.25, 0.018, 0.092, mat('#1d1f20', P), x - 0.045, y0 + 0.009, z)
+      ball(at, 0.125, 0.046, 0.05, mat(look.shoe, { roughness: 0.55, ...P }), x - 0.045, y0 + 0.046, z)
+      box(at, 0.25, 0.018, 0.092, mat('#1d1f20', P), x - 0.045, y0 + 0.009, z)
     } else {
-      box(root, 0.25, 0.022, 0.1, mat('#f2f2ea', P), x - 0.05, y0 + 0.011, z)
-      ball(root, 0.1, 0.03, 0.041, skin, x - 0.04, y0 + 0.048, z)
-      ball(root, 0.032, 0.02, 0.046, skin, x - 0.135, y0 + 0.04, z)
+      box(at, 0.25, 0.022, 0.1, mat('#f2f2ea', P), x - 0.05, y0 + 0.011, z)
+      ball(at, 0.1, 0.03, 0.041, skin, x - 0.04, y0 + 0.048, z)
+      ball(at, 0.032, 0.02, 0.046, skin, x - 0.135, y0 + 0.04, z)
       const strap = new THREE.Mesh(new THREE.TorusGeometry(0.045, 0.011, 8, 14, Math.PI), mat('#3d6c9a', P))
       strap.rotation.y = Math.PI / 2
       strap.position.set(x - 0.1, y0 + 0.03, z)
-      root.add(strap)
+      at.add(strap)
     }
   }
   // 下半身
   ball(root, 0.116, 0.112, W * 0.9, PANTS, 0, 0.0, 0)
+  const legs = []
   ;[-0.088, 0.088].forEach((z) => {
     if (standing) {
+      // 大腿掛在髖、小腿掛在膝蓋，走路的時候才擺得動
+      const hip = new THREE.Group()
+      hip.position.z = z
+      root.add(hip)
+      const knee = new THREE.Group()
+      knee.position.y = -0.42
+      hip.add(knee)
       if (look.long) {
-        limb(root, 0.082, 0.064, 0.4, PANTS, 0, -0.02, z)
-        limb(root, 0.064, 0.056, 0.36, PANTS, 0, -0.42, z)
+        limb(hip, 0.082, 0.064, 0.4, PANTS, 0, -0.02, 0)
+        limb(knee, 0.064, 0.056, 0.36, PANTS, 0, 0, 0)
       } else {
-        limb(root, 0.07, 0.053, 0.4, skin, 0, -0.02, z)
-        tube(root, 0.09, 0.088, 0.21, PANTS, 0, 0, z) // 短褲的褲管
-        limb(root, 0.053, 0.037, 0.35, skin, 0, -0.42, z)
+        limb(hip, 0.07, 0.053, 0.4, skin, 0, -0.02, 0)
+        tube(hip, 0.09, 0.088, 0.21, PANTS, 0, 0, 0) // 短褲的褲管
+        limb(knee, 0.053, 0.037, 0.35, skin, 0, 0, 0)
       }
-      foot(0, -0.8175, z)
+      foot(0, -0.3975, 0, knee)
+      legs.push({ hip, knee })
     } else {
       // 坐著：大腿往前平放，小腿垂下來
       const thigh = limb(root, 0.076, 0.058, 0.42, look.long ? PANTS : skin, 0, 0, z)
@@ -1447,8 +1457,9 @@ function makeFigureProc(standing, look = {}) {
     can.position.set(-0.02, -0.36, 0)
     can.traverse((m) => (m.castShadow = true))
     R.el.add(can)
+    o.can = can
   }
-  return { root, torso, head, L, R }
+  return { root, torso, head, L, R, legs }
 }
 
 // 姿勢：[軀幹, 頭, 左肩, 左肘, 右肩, 右肘]
@@ -1460,7 +1471,7 @@ const POSE = {
   wait: [0.04, 0.12, -0.05, -0.15, -0.08, -0.2], // 站在門口等
   ring: [0.06, 0.05, -0.05, -0.15, -1.5, -0.12], // 伸手按電鈴
   reach: [0.1, 0.12, -0.05, -0.15, -1.0, -0.3], // 伸手轉鑰匙
-  wave: [0.03, -0.04, -0.05, -0.15, -0.55, -2.0], // 手舉到臉旁邊，打招呼
+  wave: [0.03, -0.04, -0.05, -0.15, -0.1, -0.25], // 打招呼：右手往旁邊抬、小手臂舉到臉旁邊（側抬在 walkIn 裡加）
 }
 function setPose(f, a, b = a, k = 0, breathe = 0) {
   const v = a.map((x, i) => lerp(x, b[i], k))
@@ -1936,17 +1947,38 @@ function applyDay(t, dt) {
   // 結尾：電鈴響了，他走過來開門
   o.greetK = lerp(o.greetK || 0, props.greet ? 1 : 0, 1 - Math.exp(-dt * 2.2))
   if (props.greet) {
-    o.standing.root.position.set(5.95 - (1 - o.greetK) * 0.9, 0.82, -3.0)
+    // 先走過來（約一秒半，走三步），到門口停下來才舉手
+    o.walkT = Math.min(1, (o.walkT || 0) + dt / 1.6)
+    const u = o.walkT
+    const ease = u * u * (3 - 2 * u)
+    const stepK = Math.sin(Math.PI * u) ** 0.6 // 起步和停下來的時候步子小
+    const ph = u * Math.PI * 3
+    o.standing.root.position.set(5.05 + 0.9 * ease, 0.82 + Math.abs(Math.sin(ph)) * 0.018 * stepK, -3.0)
     o.standing.root.rotation.y = Math.PI
+    o.standing.legs?.forEach(({ hip, knee }, i) => {
+      const s = Math.sin(ph + i * Math.PI) * stepK
+      hip.rotation.z = -0.38 * s
+      knee.rotation.z = 0.55 * Math.max(0, -Math.cos(ph + i * Math.PI)) * stepK
+    })
   } else {
+    o.walkT = 0
+    o.standing.legs?.forEach(({ hip, knee }) => (hip.rotation.z = knee.rotation.z = 0))
     o.standing.root.position.set(1.62, 0.82, -4.3)
     o.standing.root.rotation.y = -Math.PI / 2
   }
   o.seated.root.visible = !standing && !gone
   if (props.alive && d > -0.6 && d < 3) setPose(o.seated, POSE.doze, POSE.call, smooth(d, -0.6, -0.2), breathe)
   else setPose(o.seated, POSE.doze, POSE.slump, slump, breathe * (1 - slump))
-  setPose(o.standing, POSE.water, POSE.wave, props.greet ? o.greetK : 0, breathe)
-  if (props.greet) o.standing.R.el.rotation.z += Math.sin(t * 5) * 0.2 * o.greetK // 手輕輕地揮
+  const waveK = props.greet ? smooth(o.walkT || 0, 0.75, 1) : 0 // 走到門口才舉手
+  setPose(o.standing, POSE.water, POSE.wave, props.greet ? Math.max(waveK, smooth(o.walkT || 0, 0, 0.3)) : 0, breathe)
+  if (props.greet && o.walkT < 0.75) {
+    // 走路時兩手跟著腳反方向擺
+    const ph = o.walkT * Math.PI * 3, k = Math.sin(Math.PI * o.walkT) ** 0.6
+    o.standing.L.sh.rotation.z += 0.3 * Math.sin(ph + Math.PI) * k
+    o.standing.R.sh.rotation.z += 0.3 * Math.sin(ph) * k
+  }
+  o.standing.R.sh.rotation.x = 0.55 * waveK // 右手往旁邊抬
+  o.standing.R.el.rotation.x = (2.1 + Math.sin(t * 5) * 0.22) * waveK // 小手臂舉起來，輕輕地揮
   if (o.can) o.can.visible = !props.greet // 來開門的時候手上沒有澆水壺
   o.pomelo.visible = has('neighbor') && d > -14
 
